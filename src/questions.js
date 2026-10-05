@@ -2,142 +2,187 @@ export const QUESTIONS = [
   {
     id: "q1",
     number: 1,
-    level: "LEVEL 1｜先看研究說了什麼",
-    type: "accuracy",
-    label: "準確題",
-    prompt: "研究指出，青少年睡眠不足可能造成什麼影響？",
+    level: "LEVEL 1｜留下第一條線索",
+    type: "speed",
+    label: "⚡搶快題",
+    prompt: `一篇網站文章寫：
+
+「研究指出，睡眠不足可能影響學生的學習表現。」
+
+現在我們已經找到「那篇研究」了嗎？`,
     options: [
-      { key: "A", text: "只會讓人假日比較晚起床" },
-      { key: "B", text: "可能影響注意力與學習表現" },
-      { key: "C", text: "一定不會影響白天的狀態" },
-      { key: "D", text: "只會影響身高，不會影響其他表現" },
+      { key: "A", text: "找到了，因為文章有寫「研究指出」" },
+      { key: "B", text: "還沒有，只知道有人說有研究" },
+      { key: "C", text: "找到了，因為網站敢寫就代表有根據" },
     ],
     answer: "B",
-    explanation: "先不要只看一句結論，接下來要追查：這個說法是誰研究的、研究對象是誰，以及原始研究到底支持到哪裡。",
+    explanation: "「有人說有研究」不等於「我們已經找到研究」。",
   },
   {
     id: "q2",
     number: 2,
-    level: "LEVEL 1｜來源在哪裡",
+    level: "LEVEL 1｜辨認研究本身",
     type: "accuracy",
-    label: "準確題",
-    prompt: "如果你要追查一則健康新聞的研究依據，下列哪一頁最值得繼續打開？",
+    label: "🎯準確題",
+    prompt: "哪一個最接近我們要找的「研究本身」？",
     options: [
-      { key: "A", text: "新聞網站的搜尋結果摘要" },
-      { key: "B", text: "健康網站重新整理的短文" },
-      { key: "C", text: "可以辨認研究標題、作者或期刊的研究頁面" },
-      { key: "D", text: "沒有來源連結的 AI 回答" },
+      { key: "A", text: "【新聞】\n「最新研究發現，青少年滑手機可能影響睡眠。」" },
+      { key: "B", text: "【健康網站】\n「多項研究顯示，螢幕使用可能與睡眠有關。」" },
+      { key: "C", text: "【研究頁面】\n研究題名\n作者\n年份\n期刊名稱" },
     ],
     answer: "C",
-    explanation: "找到研究頁面，才有機會核對標題、作者、年份、出版來源與研究內容。",
+    explanation: "不是因為 C 看起來比較厲害，而是它已經讓我們有機會辨認「到底是哪篇研究」。",
   },
   {
     id: "q3",
     number: 3,
-    level: "LEVEL 1｜不要被標題帶走",
+    level: "LEVEL 1｜新聞只是線索",
     type: "accuracy",
-    label: "準確題",
-    prompt: "看到一篇說『睡眠不足會影響學習』的新聞時，下一步最適合做什麼？",
+    label: "🎯準確題",
+    prompt: `你搜尋之後，又找到另一篇新聞。
+
+它也寫：
+
+「研究發現青少年睡眠和手機使用有關。」
+
+現在怎麼判斷比較合理？`,
     options: [
-      { key: "A", text: "直接把新聞標題當成證據" },
-      { key: "B", text: "找到新聞引用的研究，再核對研究內容" },
-      { key: "C", text: "只看留言區大家是否同意" },
-      { key: "D", text: "請 AI 判斷新聞一定正確" },
+      { key: "A", text: "兩篇新聞都這樣說，所以研究一定是真的" },
+      { key: "B", text: "還沒有找到研究，但多了一條可能繼續追的線索" },
+      { key: "C", text: "兩篇新聞就等於兩篇研究" },
     ],
     answer: "B",
-    explanation: "新聞是線索，不是追查的終點。",
+    explanation: "多一篇轉述，不等於多一篇研究。",
   },
   {
     id: "q4",
     number: 4,
-    level: "LEVEL 2｜辨認真正來源",
+    level: "LEVEL 2｜追回特定研究",
     type: "speed",
-    label: "⚡ 搶快題",
-    prompt: "共用模擬新聞：『2025年，某大學研究團隊發現青少年睡眠與學習表現有關，研究刊登於 Sleep Health。』下列哪個線索最有辨識力？",
+    label: "⚡搶快題",
+    prompt: `【教學模擬新聞】
+
+2025 年，某大學研究團隊調查青少年的螢幕使用與睡眠情形，研究結果刊登於《Sleep Health》。研究團隊表示，較長的螢幕使用時間與較差的睡眠狀況有關。
+
+如果要追回「這篇研究」，下面哪個資訊最有辨識力？`,
     options: [
-      { key: "A", text: "新聞使用了很吸引人的標題" },
-      { key: "B", text: "研究標題、作者／研究團隊、年份與期刊 Sleep Health 可以互相核對" },
-      { key: "C", text: "新聞圖片看起來像實驗室" },
-      { key: "D", text: "搜尋結果摘要剛好出現相同的一句話" },
+      { key: "A", text: "「研究發現」" },
+      { key: "B", text: "Sleep Health" },
+      { key: "C", text: "「睡眠不好」" },
+      { key: "D", text: "「青少年」" },
     ],
     answer: "B",
-    explanation: "能交叉核對、能回到原始出版來源的線索，才有辨識力。",
+    explanation: "Sleep Health 現在可以先當成一個「名字」，直接拿去搜尋，不需要先翻譯。",
   },
   {
     id: "q5",
     number: 5,
-    level: "LEVEL 2｜檢查研究範圍",
+    level: "LEVEL 2｜組合辨識線索",
     type: "multi",
-    label: "多選題",
-    prompt: "閱讀研究資料時，哪些資訊值得一起記下來？（至少選 3 個）",
+    label: "🎯準確題｜多選",
+    prompt: `【教學模擬新聞】
+
+2025 年，某大學研究團隊調查青少年的螢幕使用與睡眠情形，研究結果刊登於《Sleep Health》。研究團隊表示，較長的螢幕使用時間與較差的睡眠狀況有關。
+
+哪些資訊可以幫你縮小到原本那篇研究？`,
     options: [
-      { key: "A", text: "研究對象" },
-      { key: "B", text: "研究時間或年份" },
-      { key: "C", text: "測量或蒐集資料的方法" },
-      { key: "D", text: "研究限制" },
-      { key: "E", text: "文章的字體大小" },
+      { key: "A", text: "2025" },
+      { key: "B", text: "某大學研究團隊" },
+      { key: "C", text: "Sleep Health" },
+      { key: "D", text: "青少年" },
+      { key: "E", text: "「研究結果很重要」" },
     ],
     answer: ["A", "B", "C", "D"],
-    explanation: "研究對象、時間、方法與限制，都會影響結論能說到哪裡。",
+    scoring: {
+      minSelections: 3,
+      requiredKeys: ["A", "B", "C", "D"],
+      forbiddenKeys: ["E"],
+      points: 1,
+    },
+    explanation: "不是找一個神奇關鍵字，而是把手上的線索組起來。",
   },
   {
     id: "q6",
     number: 6,
-    numberLabel: "開放題",
-    level: "LEVEL 2｜把問題變成搜尋詞",
+    level: "LEVEL 2｜把線索組成搜尋詞",
     type: "open",
-    label: "💬 開放題",
-    prompt: "如果要找到『青少年睡眠與學習表現』的研究，你會輸入哪些搜尋詞？",
+    label: "💬開放題",
+    prompt: `【教學模擬新聞】
+
+2025 年，某大學研究團隊調查青少年的螢幕使用與睡眠情形，研究結果刊登於《Sleep Health》。研究團隊表示，較長的螢幕使用時間與較差的睡眠狀況有關。
+
+如果現在真的要找出「這篇研究」，
+你們會在搜尋框輸入什麼？
+
+請輸入你們真正會搜尋的文字。`,
     answer: null,
-    explanation: "好的搜尋詞能同時保留研究對象、主題與可能的出版線索。",
+    scoring: { points: 0 },
+    explanation: `找這個主題 ≠ 找這篇研究
+
+找「這篇研究」時，可以把年份、研究機構、期刊名稱、研究主題等線索組合起來。`,
   },
   {
     id: "q7",
     number: 7,
-    level: "LEVEL 2｜逐步縮小搜尋",
+    level: "LEVEL 2｜組合搜尋線索",
     type: "accuracy",
-    label: "準確題",
-    prompt: "下列哪一組搜尋詞最適合開始追查？",
+    label: "🎯準確題",
+    prompt: `如果目標是找剛才新聞說的「那篇研究」，
+你會先試哪一個搜尋？`,
     options: [
-      { key: "A", text: "睡覺 很重要" },
+      { key: "A", text: "青少年 睡眠" },
       { key: "B", text: "2025 Sleep Health 青少年 睡眠" },
-      { key: "C", text: "大家都說睡眠不足" },
-      { key: "D", text: "AI 幫我找答案" },
+      { key: "C", text: "研究證實睡眠不好" },
+      { key: "D", text: "睡眠" },
     ],
     answer: "B",
-    explanation: "年份、期刊、研究對象與主題能協助你從寬泛搜尋逐步縮小範圍。",
+    explanation: "不是因為 B 是唯一正確的搜尋法，而是它把幾個有辨識力的線索組在一起。",
   },
   {
     id: "q8",
     number: 8,
-    level: "LEVEL 3｜看懂搜尋結果",
+    level: "LEVEL 3｜確認研究身分",
     type: "accuracy",
-    label: "準確題",
-    prompt: "搜尋結果同時出現新聞、健康網站、研究頁面與 AI 摘要。哪一個最適合用來核對研究細節？",
+    label: "🎯準確題",
+    prompt: `搜尋後出現下面四種結果。
+
+如果目標是追回新聞原本引用的研究，你最值得先打開哪一個？`,
     options: [
-      { key: "A", text: "新聞標題" },
-      { key: "B", text: "健康網站的整理段落" },
-      { key: "C", text: "真正打開的研究頁面" },
-      { key: "D", text: "AI 摘要中的一句話" },
+      { key: "A", text: "【新聞】\n滑手機真的會讓孩子睡不好嗎？最新研究告訴你……" },
+      { key: "B", text: "【健康網站】\n青少年睡眠的五個重要提醒" },
+      { key: "C", text: "【研究頁面】\n研究題名\n作者\n2025\nSleep Health\nAbstract" },
+      { key: "D", text: "【AI摘要】\n根據研究，青少年螢幕使用可能與睡眠有關……" },
     ],
     answer: "C",
-    explanation: "摘要可以當線索，但不能取代你真正打開、閱讀與核對的來源。",
+    explanation: "不是因為 C 看起來比較學術，而是它提供了可以確認研究身分的資訊。",
   },
   {
     id: "q9",
     number: 9,
-    level: "LEVEL 3｜結論能說到哪裡",
+    level: "LEVEL 3｜確認是不是那篇研究",
     type: "accuracy",
-    label: "準確題",
-    prompt: "你找到一篇英文研究，研究對象是大學生；但新聞說的是『青少年』。最合理的判斷是什麼？",
+    label: "🎯準確題",
+    prompt: `你點進一個頁面，上面有：
+
+英文研究題名
+作者
+期刊
+Abstract
+
+但是：
+
+研究內容談的是「大學生」，
+新聞原本說的是「青少年」。
+
+你現在應該怎麼做？`,
     options: [
-      { key: "A", text: "研究對象不同沒關係，可以直接套用" },
-      { key: "B", text: "只要研究年份一樣，結論就一定適用" },
-      { key: "C", text: "要標記研究對象不完全相符，不能直接把結論說成適用所有青少年" },
-      { key: "D", text: "英文研究一定比新聞可靠，所以直接改寫新聞" },
+      { key: "A", text: "有 Abstract 就算找到了" },
+      { key: "B", text: "期刊一樣就算找到了" },
+      { key: "C", text: "還要確認它是不是新聞原本說的那篇研究" },
+      { key: "D", text: "英文看不懂，所以放棄" },
     ],
     answer: "C",
-    explanation: "研究對象不同，結論的適用範圍就需要重新判斷。",
+    explanation: "找到「一篇研究」還不夠，要確認是不是「那篇研究」。",
   },
 ];
 
