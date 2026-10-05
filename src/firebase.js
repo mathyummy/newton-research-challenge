@@ -89,6 +89,7 @@ export async function claimTeacherSession(sessionId, user) {
     await setDoc(sessionRef, {
       status: "waiting",
       started: false,
+      currentView: "waiting",
       currentQuestion: 1,
       published: false,
       explanationVisible: false,
@@ -100,8 +101,11 @@ export async function claimTeacherSession(sessionId, user) {
     });
     return;
   }
-  if (sessionSnap.data().started === undefined && sessionSnap.data().status === "answering") {
-    await updateDoc(sessionRef, { status: "waiting", started: false, published: false, explanationVisible: false, updatedAt: serverTimestamp() });
+  const existingSession = sessionSnap.data();
+  if (existingSession.started === undefined && existingSession.status === "answering") {
+    await updateDoc(sessionRef, { status: "waiting", started: false, currentView: "waiting", published: false, explanationVisible: false, updatedAt: serverTimestamp() });
+  } else if (existingSession.currentView === undefined) {
+    await updateDoc(sessionRef, { currentView: existingSession.started ? "question" : "waiting", updatedAt: serverTimestamp() });
   }
   if (!sessionSnap.data().teacherUid) {
     await updateDoc(sessionRef, { teacherUid: user.uid, updatedAt: serverTimestamp() });
@@ -164,7 +168,12 @@ export async function submitAnswer(sessionId, teamId, questionId, answer) {
 }
 
 export async function setSessionStatus(sessionId, status) {
-  await updateDoc(getSessionRef(sessionId), { status, ...(status === "answering" ? { started: true } : {}), updatedAt: serverTimestamp() });
+  await updateDoc(getSessionRef(sessionId), {
+    status,
+    ...(status === "answering" ? { started: true, currentView: "question" } : {}),
+    ...(status === "waiting" ? { started: false, currentView: "waiting" } : {}),
+    updatedAt: serverTimestamp(),
+  });
 }
 
 export async function setSessionView(sessionId, changes) {
@@ -176,6 +185,7 @@ export async function advanceQuestion(sessionId, questionNumber) {
     currentQuestion: questionNumber,
     status: "answering",
     started: true,
+    currentView: "question",
     published: false,
     explanationVisible: false,
     completedCount: 0,
@@ -197,6 +207,7 @@ export async function resetSession(sessionId) {
   batch.update(sessionRef, {
     status: "waiting",
     started: false,
+    currentView: "waiting",
     currentQuestion: 1,
     published: false,
     explanationVisible: false,

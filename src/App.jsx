@@ -19,6 +19,7 @@ import {
   signInApp,
   submitAnswer,
 } from "./firebase.js";
+import { STAGE_VIEWS, getStageContent } from "./stages.js";
 
 const ROUTES = { student: "/student", screen: "/screen", teacher: "/teacher" };
 const TEAM_STORAGE_KEY = "newton-challenge-team-id";
@@ -31,6 +32,15 @@ function getCurrentQuestion(session) {
 function formatAnswer(answer) {
   if (Array.isArray(answer)) return answer.join("、");
   return answer || "—";
+}
+
+function getCurrentView(session) {
+  if (session?.currentView) return session.currentView;
+  return session?.started ? STAGE_VIEWS.QUESTION : "waiting";
+}
+
+function isStageView(view) {
+  return Boolean(getStageContent(view));
 }
 
 function routeName() {
@@ -264,6 +274,31 @@ function WaitingRoom({ session, team }) {
   );
 }
 
+function StudentStage({ view }) {
+  const content = getStageContent(view);
+  const formUrl = import.meta.env.VITE_FINAL_FORM_URL || import.meta.env.VITE_GOOGLE_FORM_URL || "";
+  if (!content) return null;
+  if (view === STAGE_VIEWS.FINAL_TRANSITION) {
+    return <section className="student-stage surface student-stage-final"><span className="stage-check">✓</span><p className="eyebrow">FINAL TRANSITION</p><h2>FINAL 即將開始</h2><p>請先看大屏</p></section>;
+  }
+  if (view === STAGE_VIEWS.FINAL) {
+    return <section className="student-stage surface student-stage-final">
+      <span className="stage-check">✓</span>
+      <p className="eyebrow">FINAL｜真的把研究追回來</p>
+      <h2>這一關不比速度。</h2>
+      <p>請先看教室大屏上的研究線索。</p>
+      <p>找到你認為是原始研究的頁面後，<br />再開啟 FINAL 表單提交。</p>
+      {formUrl ? <a className="button button-primary final-form-link" href={formUrl} target="_blank" rel="noreferrer">開啟 FINAL Google 表單</a> : <p className="final-form-missing">FINAL 表單尚未設定，請告訴老師。</p>}
+    </section>;
+  }
+  return <section className={`student-stage surface ${view === STAGE_VIEWS.FINAL_HINT ? "student-stage-final" : ""}`}>
+    <span className="stage-check">✓</span>
+    <p className="eyebrow">{view.startsWith("debrief") || view === STAGE_VIEWS.CONCEPT_SUMMARY ? "課堂收束" : "本階段完成"}</p>
+    <h2>請看教室大屏</h2>
+    <p>等待老師繼續</p>
+  </section>;
+}
+
 function StudentPage({ authUser, setError }) {
   const session = useSession(authUser, setError);
   const [teamId, setTeamId] = useState(() => localStorage.getItem(TEAM_STORAGE_KEY));
@@ -274,10 +309,27 @@ function StudentPage({ authUser, setError }) {
   }, [teamId]);
   const ready = Boolean(session);
   const question = getCurrentQuestion(session);
-  return <PageFrame role="student" eyebrow="STUDENT MODE" title={team ? `Q${question.number}，繼續研究追查` : "先加入隊伍，再開始追查"} description={team ? "大屏會顯示完整題目；這個畫面也同步保留題目與選項，方便作答。" : "一組兩人、一台裝置。今晚建立的最小版本，先讓明天的第一題順利跑起來。"}>
+  const view = getCurrentView(session);
+  const title = !team ? "先加入隊伍，再開始追查" : view === STAGE_VIEWS.QUESTION ? `Q${question.number}，繼續研究追查` : "研究追查進行中";
+  const description = !team ? "一組兩人、一台裝置。今晚建立的最小版本，先讓明天的第一題順利跑起來。" : view === STAGE_VIEWS.QUESTION ? "大屏會顯示完整題目；這個畫面也同步保留題目與選項，方便作答。" : "請依照教師端與教室大屏的節奏進行。";
+  return <PageFrame role="student" eyebrow="STUDENT MODE" title={title} description={description}>
     {setError && <div className="connection-line"><span className={`live-dot ${ready ? "" : "offline"}`} />{ready ? `本場已連線 · ${session?.teamCount || 0} 組已加入` : "等待老師啟動本場…"}</div>}
-    {team ? (session?.started ? <StudentQuestion session={session} team={team} setError={setError} /> : <WaitingRoom session={session} team={team} />) : <JoinTeam session={session} onJoined={setTeamId} setError={setError} />}
+    {team ? (view === "waiting" || !session?.started ? <WaitingRoom session={session} team={team} /> : view === STAGE_VIEWS.QUESTION ? <StudentQuestion session={session} team={team} setError={setError} /> : <StudentStage view={view} />) : <JoinTeam session={session} onJoined={setTeamId} setError={setError} />}
   </PageFrame>;
+}
+
+function ScreenStage({ view }) {
+  const content = getStageContent(view);
+  if (!content) return null;
+  return <div className={`screen-stage surface screen-stage-${content.kind}`}>
+    <p className="eyebrow">{content.eyebrow}</p>
+    <h1>{content.title}</h1>
+    {content.lines?.length ? <div className="stage-lines">{content.lines.map((line, index) => <div className={`stage-line ${line === "≠" ? "stage-equation" : index === 0 && content.kind === "summary" ? "stage-summary-label" : ""}`} key={`${line}-${index}`}>{line}</div>)}</div> : null}
+    {content.sections?.length ? <div className="stage-sections">{content.sections.map((section, index) => <div className="stage-section" key={`${section.label}-${index}`}><strong>{section.label}</strong><p>{section.text}</p></div>)}</div> : null}
+    {content.score ? <div className="stage-summary-score">{content.score}</div> : null}
+    {content.support ? <p className="stage-support">{content.support}</p> : null}
+    {content.hint ? <p className="stage-hint">{content.hint}</p> : null}
+  </div>;
 }
 
 function ScreenPage({ authUser, setError }) {
@@ -291,12 +343,14 @@ function ScreenPage({ authUser, setError }) {
   const progress = session ? `${session.completedCount || 0} / ${session.teamCount || 0}` : "— / —";
   const visibleAnswers = publicAnswers.filter((answer) => answer.questionId === question.id);
   const started = Boolean(session?.started);
-  const screenStatus = !started ? "等待老師開始競賽" : session?.status === "stopped" ? "已停止作答" : "作答進行中";
+  const view = getCurrentView(session);
+  const stageContent = getStageContent(view);
+  const screenStatus = !started ? "等待老師開始競賽" : stageContent ? stageContent.eyebrow : session?.status === "stopped" ? "已停止作答" : "作答進行中";
   return <PageFrame role="screen" eyebrow="SCREEN MODE" title="全班追查進度" description="這個畫面只公布題目與全班完成進度；未公布前，不顯示任何隊伍答案。">
     <section className="screen-layout">
-      <div className="screen-topline"><span className="live-label"><span className="live-dot" />LIVE SESSION</span><span>Q{question.number} / {QUESTIONS.length}</span><span className="screen-status">{screenStatus}</span></div>
-      {!started ? <div className="screen-waiting surface"><p className="eyebrow">準備開始</p><h1>等待老師開始競賽</h1><p>請各組先完成加入。老師按下「開始本題」後，第一題會同步出現在大屏與學生端。</p><div className="screen-waiting-count"><strong>{session?.teamCount || 0}</strong><span>組已加入</span></div></div> : <div className="screen-question surface"><div className="screen-question-header"><div><p className="eyebrow">{question.level}</p><h2>{question.label}</h2></div><div className="screen-progress"><strong>{progress}</strong><span>已完成組數</span></div></div><h1>{question.prompt}</h1>{question.type === "open" ? <div className="screen-open-note">開放題：請各組在學生端輸入搜尋詞，送出後等待老師公布。</div> : <div className="screen-options">{(question.options || []).map((option) => <div className={`screen-option answer-color-${option.key.toLowerCase()}`} key={option.key}><span>{option.key}</span><p>{option.text}</p></div>)}</div>}{session?.published ? <section className="published-answers"><div className="published-heading"><p className="eyebrow">全班答案</p><span>{visibleAnswers.length} 組已提交</span></div>{visibleAnswers.length === 0 ? <p className="published-empty">目前沒有可顯示的答案。</p> : <div className="published-list">{visibleAnswers.map((answer) => <div className="published-answer" key={answer.id}><strong>{answer.teamName}</strong><span>{formatAnswer(answer.value)}</span></div>)}</div>}</section> : null}{session?.explanationVisible ? <section className="screen-explanation"><div><p className="eyebrow">正解與解析</p><strong>正解：{formatAnswer(question.answer)}</strong></div><p>{question.explanation}</p></section> : null}</div>}
-      <div className="screen-bottomline"><span>{!started ? "等待老師開始競賽。" : session?.explanationVisible ? "老師正在講解本題。" : session?.published ? "請觀察各組答案，再聽老師公布正解。" : "請和隊友討論，完成後由一台裝置提交。"}</span><span className="privacy-note">{!started ? "尚未開始" : session?.explanationVisible ? "已顯示解析" : session?.published ? "全班答案已公布" : "答案尚未公布"}</span></div>
+      <div className="screen-topline"><span className="live-label"><span className="live-dot" />LIVE SESSION</span><span>{stageContent ? stageContent.eyebrow : `Q${question.number} / ${QUESTIONS.length}`}</span><span className="screen-status">{screenStatus}</span></div>
+      {!started ? <div className="screen-waiting surface"><p className="eyebrow">準備開始</p><h1>等待老師開始競賽</h1><p>請各組先完成加入。老師按下「開始本題」後，第一題會同步出現在大屏與學生端。</p><div className="screen-waiting-count"><strong>{session?.teamCount || 0}</strong><span>組已加入</span></div></div> : stageContent ? <ScreenStage view={view} /> : <div className="screen-question surface"><div className="screen-question-header"><div><p className="eyebrow">{question.level}</p><h2>{question.label}</h2></div><div className="screen-progress"><strong>{progress}</strong><span>已完成組數</span></div></div><h1>{question.prompt}</h1>{question.type === "open" ? <div className="screen-open-note">開放題：請各組在學生端輸入搜尋詞，送出後等待老師公布。</div> : <div className="screen-options">{(question.options || []).map((option) => <div className={`screen-option answer-color-${option.key.toLowerCase()}`} key={option.key}><span>{option.key}</span><p>{option.text}</p></div>)}</div>}{session?.published ? <section className="published-answers"><div className="published-heading"><p className="eyebrow">全班答案</p><span>{visibleAnswers.length} 組已提交</span></div>{visibleAnswers.length === 0 ? <p className="published-empty">目前沒有可顯示的答案。</p> : <div className="published-list">{visibleAnswers.map((answer) => <div className="published-answer" key={answer.id}><strong>{answer.teamName}</strong><span>{formatAnswer(answer.value)}</span></div>)}</div>}</section> : null}{session?.explanationVisible ? <section className="screen-explanation"><div><p className="eyebrow">正解與解析</p><strong>正解：{formatAnswer(question.answer)}</strong></div><p>{question.explanation}</p></section> : null}</div>}
+      <div className="screen-bottomline"><span>{!started ? "等待老師開始競賽。" : stageContent ? "請依照老師指示，等待進入下一階段。" : session?.explanationVisible ? "老師正在講解本題。" : session?.published ? "請觀察各組答案，再聽老師公布正解。" : "請和隊友討論，完成後由一台裝置提交。"}</span><span className="privacy-note">{!started ? "尚未開始" : stageContent ? "教師手動控制" : session?.explanationVisible ? "已顯示解析" : session?.published ? "全班答案已公布" : "答案尚未公布"}</span></div>
     </section>
   </PageFrame>;
 }
@@ -304,6 +358,8 @@ function ScreenPage({ authUser, setError }) {
 function TeacherPage({ authUser, setError }) {
   const session = useSession(authUser, setError);
   const question = getCurrentQuestion(session);
+  const view = getCurrentView(session);
+  const stageContent = getStageContent(view);
   const [teams, setTeams] = useState([]);
   const [claimed, setClaimed] = useState(false);
   useEffect(() => {
@@ -316,14 +372,45 @@ function TeacherPage({ authUser, setError }) {
     return listenToTeams(SESSION_ID, setTeams, (err) => setError(err.message || "讀取隊伍失敗。"));
   }, [claimed, setError]);
   async function changeStatus(status) { try { await setSessionStatus(SESSION_ID, status); } catch (err) { setError(err.message || "更新狀態失敗。"); } }
-  async function changeView(changes) { try { await setSessionView(SESSION_ID, changes); } catch (err) { setError(err.message || "更新公布狀態失敗。"); } }
+  async function changeView(changes) { try { await setSessionView(SESSION_ID, changes); } catch (err) { setError(err.message || "更新流程失敗。"); } }
   async function nextQuestion() { if (!session || question.number >= QUESTIONS.length) return; try { await advanceQuestion(SESSION_ID, question.number + 1); } catch (err) { setError(err.message || "切換題目失敗。"); } }
+  async function showStage(nextView) { await changeView({ currentView: nextView, status: "stopped", published: false, explanationVisible: false }); }
   async function handleReset() { if (!window.confirm(`確定立即重設本場？目前第 ${question.number} 題也會中止，隊伍、答案、分數都會清空並回到等待開始。`)) return; try { await resetSession(SESSION_ID); } catch (err) { setError(err.message || "重設失敗。"); } }
-  return <PageFrame role="teacher" eyebrow="TEACHER MODE" title="教師控制台" description="手機端優先：控制作答節奏、先偷看答案，再分段公布全班答案與解析。">
-    <div className="teacher-toolbar"><div><p className="eyebrow">本場狀態 · Q{question.number} / {QUESTIONS.length}</p><div className="teacher-count"><strong>{session?.completedCount || 0}</strong><span>/ {session?.teamCount || 0} 組完成本題</span></div></div><div className="teacher-actions"><button className="button button-secondary" onClick={() => changeStatus("answering")} disabled={session?.status === "answering"}>開始競賽</button><button className="button button-danger" onClick={() => changeStatus("stopped")} disabled={session?.status === "stopped" || !session?.started}>停止作答</button><button className="button button-secondary" onClick={() => changeView({ published: true })} disabled={session?.status !== "stopped" || session?.published}>公布全班答案</button><button className="button button-secondary" onClick={() => changeView({ explanationVisible: true })} disabled={!session?.published || session?.explanationVisible}>顯示正解與解析</button><button className="button button-quiet" onClick={nextQuestion} disabled={!session?.explanationVisible || question.number >= QUESTIONS.length}>下一題</button><button className="button button-quiet" onClick={handleReset}>重設本場</button></div></div>
-    <div className="phase-note"><span>PHASE 2</span><p>目前已開放 Q1–Q9、不同題型、公布全班答案與分段顯示解析；重設本場可在任何題目立即使用。計時器、計分與排行榜會在後續 Phase 3–4 接上。</p></div>
-    <section className="surface teacher-brief"><div className="teacher-brief-heading"><div><p className="eyebrow">教師講解卡 · Q{question.number}</p><h2>{question.prompt}</h2></div><span className="status-badge status-amber">正解 {formatAnswer(question.answer)}</span></div><p className="teacher-explanation">{question.explanation}</p></section>
-    <section className="teacher-grid"><div className="surface roster-surface"><div className="section-heading"><div><p className="eyebrow">隊伍名單 · 教師可見</p><h2>已加入 {teams.length} 組</h2></div><span className="status-badge status-ready">即時更新</span></div>{teams.length === 0 ? <div className="empty-state"><strong>還沒有隊伍加入</strong><p>請把 `/student` 交給學生，或先確認學生端使用相同 Firebase 專案。</p></div> : <div className="team-list">{teams.map((team) => { const submitted = Boolean(team.submitted?.[question.id]); const value = team.answers?.[question.id]?.value; return <article className="team-row" key={team.id}><div className="team-row-main"><span className={`team-state ${submitted ? "done" : "pending"}`} /><div><strong>{team.teamName}</strong><p>{team.className} · {team.members?.map((member) => `${member.seat}號 ${member.name}`).join("、")}</p></div></div><div className="team-answer">{submitted ? <><small>Q{question.number} 答案</small><strong className="team-answer-value">{formatAnswer(value)}</strong></> : <span className="pending-text">尚未提交</span>}</div></article>; })}</div>}</div><aside className="surface control-surface"><p className="eyebrow">本輪流程</p><h2>Q{question.number} / {QUESTIONS.length}</h2><div className={`control-step ${session?.status === "answering" ? "active" : ""}`}><span>01</span><div><strong>作答進行中</strong><small>{session?.status === "answering" ? "學生目前可以提交" : "按開始本題開放作答"}</small></div></div><div className={`control-step ${session?.published ? "active" : ""}`}><span>02</span><div><strong>公布全班答案</strong><small>{session?.published ? "大屏已顯示隊名與答案" : "停止作答後再公布"}</small></div></div><div className={`control-step ${session?.explanationVisible ? "active" : ""}`}><span>03</span><div><strong>顯示正解與解析</strong><small>{session?.explanationVisible ? "大屏已顯示解析" : "公布答案後再顯示"}</small></div></div><div className={`control-step ${session?.explanationVisible && question.number < QUESTIONS.length ? "active" : "disabled"}`}><span>04</span><div><strong>下一題</strong><small>{question.number >= QUESTIONS.length ? "已到最後一題" : "顯示解析後切換"}</small></div></div></aside></section>
+  let primaryAction = null;
+  let primaryClass = "button button-secondary teacher-primary-action";
+  let nextLabel = "等待教師端連線";
+  if (session) {
+    if (view === "waiting") { primaryAction = () => changeStatus("answering"); nextLabel = "開始第一題"; }
+    else if (view === STAGE_VIEWS.QUESTION && session.status === "answering") { primaryAction = () => changeStatus("stopped"); primaryClass = "button button-danger teacher-primary-action"; nextLabel = "停止作答"; }
+    else if (view === STAGE_VIEWS.QUESTION && session.status === "stopped" && !session.published) { primaryAction = () => changeView({ published: true }); nextLabel = question.type === "open" ? "公布全班搜尋詞" : "公布全班答案"; }
+    else if (view === STAGE_VIEWS.QUESTION && session.published && !session.explanationVisible) { primaryAction = () => changeView({ explanationVisible: true }); nextLabel = "顯示正解與解析"; }
+    else if (view === STAGE_VIEWS.QUESTION && session.explanationVisible) {
+      if (question.number === 3) { primaryAction = () => showStage(STAGE_VIEWS.CHECKPOINT_1); nextLabel = "顯示 LEVEL 1 收束"; }
+      else if (question.number === 6) { primaryAction = () => showStage(STAGE_VIEWS.CHECKPOINT_2); nextLabel = "顯示 LEVEL 2 收束"; }
+      else if (question.number === 9) { primaryAction = () => showStage(STAGE_VIEWS.CHECKPOINT_3); nextLabel = "顯示 LEVEL 3 收束"; }
+      else { primaryAction = nextQuestion; nextLabel = "進入下一題"; }
+    } else if (view === STAGE_VIEWS.CHECKPOINT_1) { primaryAction = () => nextQuestion(); nextLabel = "進入 LEVEL 2"; }
+    else if (view === STAGE_VIEWS.CHECKPOINT_2) { primaryAction = () => nextQuestion(); nextLabel = "進入 LEVEL 3"; }
+    else if (view === STAGE_VIEWS.CHECKPOINT_3) { primaryAction = () => showStage(STAGE_VIEWS.SCORE_SUMMARY); nextLabel = "看前九題結算"; }
+    else if (view === STAGE_VIEWS.SCORE_SUMMARY) { primaryAction = () => showStage(STAGE_VIEWS.FINAL_TRANSITION); nextLabel = "進入 FINAL"; }
+    else if (view === STAGE_VIEWS.FINAL_TRANSITION) { primaryAction = () => showStage(STAGE_VIEWS.FINAL); nextLabel = "顯示 FINAL 線索"; }
+    else if (view === STAGE_VIEWS.FINAL) { primaryAction = () => showStage(STAGE_VIEWS.FINAL_HINT); nextLabel = "顯示卡關提示"; }
+    else if (view === STAGE_VIEWS.FINAL_HINT) { primaryAction = () => showStage(STAGE_VIEWS.FINAL); nextLabel = "回到 FINAL 線索"; }
+    else if (view === STAGE_VIEWS.DEBRIEF_QUESTION_1) { primaryAction = () => showStage(STAGE_VIEWS.DEBRIEF_QUESTION_1_ANSWER); nextLabel = "顯示答案"; }
+    else if (view === STAGE_VIEWS.DEBRIEF_QUESTION_1_ANSWER) { primaryAction = () => showStage(STAGE_VIEWS.DEBRIEF_QUESTION_2); nextLabel = "進入收束問題 2"; }
+    else if (view === STAGE_VIEWS.DEBRIEF_QUESTION_2) { primaryAction = () => showStage(STAGE_VIEWS.DEBRIEF_QUESTION_2_ANSWER); nextLabel = "顯示答案"; }
+    else if (view === STAGE_VIEWS.DEBRIEF_QUESTION_2_ANSWER) { primaryAction = () => showStage(STAGE_VIEWS.CONCEPT_SUMMARY); nextLabel = "顯示最終概念收束"; }
+    else if (view === STAGE_VIEWS.CONCEPT_SUMMARY) { nextLabel = "本場收束完成"; }
+  }
+  const displayStage = stageContent || { eyebrow: `Q${question.number}`, title: `第 ${question.number} 題` };
+  const finalViews = [STAGE_VIEWS.FINAL, STAGE_VIEWS.FINAL_HINT, STAGE_VIEWS.DEBRIEF_QUESTION_1, STAGE_VIEWS.DEBRIEF_QUESTION_1_ANSWER, STAGE_VIEWS.DEBRIEF_QUESTION_2, STAGE_VIEWS.DEBRIEF_QUESTION_2_ANSWER, STAGE_VIEWS.CONCEPT_SUMMARY];
+  const isFinalStage = finalViews.includes(view);
+  const stageBrief = stageContent ? <section className="surface teacher-brief teacher-stage-brief"><div className="teacher-brief-heading"><div><p className="eyebrow">{displayStage.eyebrow}</p><h2>{displayStage.title}</h2></div><span className="status-badge status-ready">教師手動控制</span></div><div className="teacher-stage-lines">{displayStage.lines?.map((line, index) => <span className={line === "≠" ? "teacher-stage-equation" : ""} key={`${line}-${index}`}>{line}</span>)}</div>{displayStage.sections?.length ? <div className="teacher-stage-sections">{displayStage.sections.map((section, index) => <div key={`${section.label}-${index}`}><strong>{section.label}</strong><p>{section.text}</p></div>)}</div> : null}{displayStage.support ? <p className="teacher-explanation">{displayStage.support}</p> : null}{displayStage.hint ? <p className="teacher-stage-hint">{displayStage.hint}</p> : null}{displayStage.teacherNotes?.length ? <div className="teacher-stage-notes"><strong>教師巡視提示</strong>{displayStage.teacherNotes.map((note) => <p key={note}>{note}</p>)}</div> : null}</section> : <section className="surface teacher-brief"><div className="teacher-brief-heading"><div><p className="eyebrow">教師講解卡 · Q{question.number}</p><h2>{question.prompt}</h2></div><span className="status-badge status-amber">正解 {formatAnswer(question.answer)}</span></div><p className="teacher-explanation">{question.explanation}</p></section>;
+  return <PageFrame role="teacher" eyebrow="TEACHER MODE" title="教師控制台" description="手機端優先：控制作答節奏，並用單一下一步按鈕帶領全班完成分段收束。">
+    <div className="teacher-toolbar"><div><p className="eyebrow">本場狀態 · {stageContent ? displayStage.eyebrow : `Q${question.number} / ${QUESTIONS.length}`}</p><div className="teacher-count"><strong>{isFinalStage ? (session?.teamCount || 0) : (session?.completedCount || 0)}</strong><span>{isFinalStage ? "目前本場組數" : `/ ${session?.teamCount || 0} 組完成本題`}</span></div><p className="teacher-next-label">下一步：{nextLabel}</p></div><div className="teacher-actions">{primaryAction ? <button className={primaryClass} onClick={primaryAction}>{nextLabel}</button> : null}{view === STAGE_VIEWS.FINAL ? <button className="button button-quiet" onClick={() => showStage(STAGE_VIEWS.DEBRIEF_QUESTION_1)}>結束 FINAL／進入收束</button> : null}<button className="button button-quiet" onClick={handleReset}>重設本場</button></div></div>
+    <div className="phase-note"><span>PHASE 3</span><p>Q1–Q3、Q4–Q6、Q7–Q9 各自完成後，教師手動進入概念收束；不自動跳題、不在 checkpoint 計分。</p></div>
+    {stageBrief}
+    <section className="teacher-grid"><div className="surface roster-surface"><div className="section-heading"><div><p className="eyebrow">隊伍名單 · 教師可見</p><h2>已加入 {teams.length} 組</h2></div><span className="status-badge status-ready">即時更新</span></div>{teams.length === 0 ? <div className="empty-state"><strong>還沒有隊伍加入</strong><p>請把 `/student` 交給學生，或先確認學生端使用相同 Firebase 專案。</p></div> : <div className="team-list">{teams.map((team) => { const submitted = Boolean(team.submitted?.[question.id]); const value = team.answers?.[question.id]?.value; return <article className="team-row" key={team.id}><div className="team-row-main"><span className={`team-state ${submitted ? "done" : "pending"}`} /><div><strong>{team.teamName}</strong><p>{team.className} · {team.members?.map((member) => `${member.seat}號 ${member.name}`).join("、")}</p></div></div><div className="team-answer">{submitted ? <><small>Q{question.number} 答案</small><strong className="team-answer-value">{formatAnswer(value)}</strong></> : <span className="pending-text">尚未提交</span>}</div></article>; })}</div>}</div><aside className="surface control-surface"><p className="eyebrow">目前流程</p><h2>{displayStage.eyebrow}</h2><div className={`control-step ${view === STAGE_VIEWS.QUESTION && session?.status === "answering" ? "active" : ""}`}><span>01</span><div><strong>{view === STAGE_VIEWS.QUESTION ? "本題作答" : "目前階段"}</strong><small>{view === STAGE_VIEWS.QUESTION ? (session?.status === "answering" ? "學生目前可以提交" : "等待教師公布或顯示解析") : displayStage.title}</small></div></div><div className="control-step active"><span>02</span><div><strong>下一步</strong><small>{nextLabel}</small></div></div><div className="control-step"><span>03</span><div><strong>學生端</strong><small>{isStageView(view) ? "顯示等待老師繼續" : "依目前題目作答"}</small></div></div></aside></section>
   </PageFrame>;
 }
 

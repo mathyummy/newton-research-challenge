@@ -1,0 +1,125 @@
+export const STAGE_VIEWS = {
+  QUESTION: "question",
+  CHECKPOINT_1: "checkpoint1",
+  CHECKPOINT_2: "checkpoint2",
+  CHECKPOINT_3: "checkpoint3",
+  SCORE_SUMMARY: "scoreSummary",
+  FINAL_TRANSITION: "finalTransition",
+  FINAL: "final",
+  FINAL_HINT: "finalHint",
+  DEBRIEF_QUESTION_1: "debriefQuestion1",
+  DEBRIEF_QUESTION_1_ANSWER: "debriefQuestion1Answer",
+  DEBRIEF_QUESTION_2: "debriefQuestion2",
+  DEBRIEF_QUESTION_2_ANSWER: "debriefQuestion2Answer",
+  CONCEPT_SUMMARY: "conceptSummary",
+};
+
+export const STAGE_CONTENT = {
+  checkpoint1: {
+    kind: "checkpoint",
+    eyebrow: "CHECKPOINT 1",
+    title: "LEVEL 1 完成",
+    lines: ["有人說有研究", "≠", "我們已經找到研究", "多一篇轉述", "也不等於", "多一篇研究"],
+    support: "下一步：\n開始找文章留下的「研究線索」。",
+    teacherAction: "進入 LEVEL 2",
+  },
+  checkpoint2: {
+    kind: "checkpoint",
+    eyebrow: "CHECKPOINT 2",
+    title: "LEVEL 2 完成",
+    lines: ["找這個主題", "≠", "找這篇研究"],
+    support: "如果目標是「那篇研究」，\n搜尋時要把能辨認它身分的線索放進去。",
+    hint: "例如：年份　研究機構　期刊名稱　研究主題",
+    teacherAction: "進入 LEVEL 3",
+  },
+  checkpoint3: {
+    kind: "checkpoint",
+    eyebrow: "CHECKPOINT 3",
+    title: "LEVEL 3 完成",
+    lines: ["找到一篇研究", "≠", "找到那篇研究"],
+    support: "主題很像、\n期刊很像、\n都是英文，\n都還不能直接證明：\n「就是新聞原本說的那篇。」",
+    hint: "還要比對：研究對象　年份　題名　作者／研究團隊　期刊／出版來源",
+    teacherAction: "看前九題結算",
+  },
+  scoreSummary: {
+    kind: "summary",
+    eyebrow: "SCORE SUMMARY",
+    title: "前半場結束",
+    lines: ["Q1～Q9", "最高 10 分", "但是——", "你現在最高只有"],
+    score: "10 / 20",
+    teacherAction: "進入 FINAL",
+  },
+  finalTransition: {
+    kind: "final-transition",
+    eyebrow: "FINAL",
+    title: "真的把研究追回來",
+    lines: ["10 分", "不比速度"],
+    support: "前面是在練習判斷。\n現在，真的用線索把「那篇研究」追回來。",
+    teacherAction: "顯示 FINAL 線索",
+  },
+  final: {
+    kind: "final",
+    eyebrow: "FINAL",
+    title: "FINAL｜真實新聞線索",
+    sections: [
+      { label: "", text: "有研究指出，\n青少年睡前使用螢幕，\n可能和較多的睡眠干擾，\n以及較短的睡眠時間有關。" },
+      { label: "", text: "這項研究使用\n美國大型青少年研究計畫的資料。" },
+      { label: "研究對象約為：", text: "12～13 歲" },
+      { label: "研究團隊包含：", text: "University of California,\nSan Francisco（UCSF）" },
+      { label: "研究成果發表於：", text: "Sleep Health" },
+    ],
+    support: "任務：\n把這則消息背後的「那篇原始研究」追回來。\n找到後，到 FINAL Google 表單提交。\n這一關不比速度。",
+    teacherNotes: [
+      "如果學生問「老師，這個是不是？」請問：「你怎麼知道它就是大屏說的那篇？」",
+      "如果學生找到另一篇新聞，問：「這頁自己做研究，還是在講別人的研究？」",
+      "如果學生說「都是英文！」，提醒：「今天不用讀完整篇。先找題名、作者、年份、期刊，再跟大屏線索比。」",
+      "如果學生找到相關但不同研究，問：「它跟大屏上的年齡、期刊、研究機構都對得上嗎？」",
+    ],
+  },
+  finalHint: {
+    kind: "final-hint",
+    eyebrow: "FINAL｜卡關提示",
+    title: "卡住了？",
+    sections: [
+      { label: "先問自己：", text: "1. 我現在找到的是：\n新聞／一般網站／AI整理\n還是研究頁面？" },
+      { label: "", text: "2. 它和大屏上的線索對得起來嗎？" },
+      { label: "比對：", text: "研究對象　12～13 歲\n研究機構　UCSF\n期刊　Sleep Health\n研究主題　睡前螢幕使用 × 睡眠" },
+      { label: "", text: "英文看不懂沒關係。\n今天先確認：題名／作者／年份／期刊／研究對象" },
+    ],
+    teacherNote: "提醒教師：今天不用讀完整篇。先找題名、作者、年份、期刊，再跟大屏線索比。",
+  },
+  debriefQuestion1: {
+    kind: "debrief-question",
+    eyebrow: "FINAL｜課堂收束 1",
+    title: "看到網站寫：\n「研究指出……」",
+    lines: ["你現在會多問哪一句？"],
+  },
+  debriefQuestion1Answer: {
+    kind: "debrief-answer",
+    eyebrow: "FINAL｜課堂收束 1",
+    title: "哪個研究？",
+    lines: ["研究在哪裡？"],
+  },
+  debriefQuestion2: {
+    kind: "debrief-question",
+    eyebrow: "FINAL｜課堂收束 2",
+    title: "Google 找到一篇\n同主題的研究，",
+    lines: ["就算成功了嗎？"],
+  },
+  debriefQuestion2Answer: {
+    kind: "debrief-answer",
+    eyebrow: "FINAL｜課堂收束 2",
+    title: "找這個主題",
+    lines: ["≠", "找這篇研究"],
+  },
+  conceptSummary: {
+    kind: "concept-summary",
+    eyebrow: "FINAL｜最終概念收束",
+    title: "研究追查，\n不只是找到東西。",
+    lines: ["是知道自己", "追到了哪裡。"],
+  },
+};
+
+export function getStageContent(view) {
+  return STAGE_CONTENT[view] || null;
+}
