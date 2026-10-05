@@ -281,13 +281,38 @@ function StudentStage({ view }) {
   if (view === STAGE_VIEWS.FINAL_TRANSITION) {
     return <section className="student-stage surface student-stage-final"><span className="stage-check">✓</span><p className="eyebrow">FINAL TRANSITION</p><h2>FINAL 即將開始</h2><p>請先看大屏</p></section>;
   }
-  if (view === STAGE_VIEWS.FINAL) {
-    return <section className="student-stage surface student-stage-final">
-      <span className="stage-check">✓</span>
-      <p className="eyebrow">FINAL｜真的把研究追回來</p>
-      <h2>這一關不比速度。</h2>
-      <p>請先看教室大屏上的研究線索。</p>
-      <p>找到你認為是原始研究的頁面後，<br />再開啟 FINAL 表單提交。</p>
+  if (view === STAGE_VIEWS.FINAL || view === STAGE_VIEWS.FINAL_HINT) {
+    const finalContent = getStageContent(STAGE_VIEWS.FINAL);
+    return <section className="student-stage surface student-stage-final student-final-stage">
+      <div className="student-final-header">
+        <span className="stage-check">✓</span>
+        <p className="eyebrow">FINAL</p>
+        <h2>FINAL｜真的把研究追回來</h2>
+        <div className="student-final-score">10 分</div>
+        <p>這一關不比速度</p>
+      </div>
+      {view === STAGE_VIEWS.FINAL_HINT ? <div className="student-final-notice" role="status">老師已顯示卡關提示，請看大屏。</div> : null}
+      <div className="student-final-scroll">
+        <section className="student-final-clue-card">
+          <p className="eyebrow">研究線索</p>
+          {finalContent.sections.map((section, index) => <div className="student-final-clue" key={`${section.label}-${index}`}>
+            {section.label ? <strong>{section.label}</strong> : null}
+            <p>{section.text}</p>
+          </div>)}
+        </section>
+        <section className="student-final-task">
+          <p className="eyebrow">任務</p>
+          <p>把這則消息背後的<br />「那篇原始研究」<br />追回來。</p>
+          <p>找到後，<br />到 FINAL Google 表單提交。</p>
+        </section>
+        <section className="student-final-reminder">
+          <p className="eyebrow">小提醒</p>
+          <p>搜尋時可以把你覺得有用的線索組合起來。</p>
+          <p>找到研究後，先確認：</p>
+          <ul><li>研究題名</li><li>作者／研究團隊</li><li>年份</li><li>期刊</li><li>研究對象</li></ul>
+          <small>這不是在提供標準搜尋句，只是提醒你最後要確認研究身分。</small>
+        </section>
+      </div>
       {formUrl ? <a className="button button-primary final-form-link" href={formUrl} target="_blank" rel="noreferrer">開啟 FINAL Google 表單</a> : <p className="final-form-missing">FINAL 表單尚未設定，請告訴老師。</p>}
     </section>;
   }
@@ -321,6 +346,16 @@ function StudentPage({ authUser, setError }) {
 function ScreenStage({ view }) {
   const content = getStageContent(view);
   if (!content) return null;
+  if (view === STAGE_VIEWS.FINAL) {
+    return <div className="screen-stage surface screen-stage-final-simple">
+      <p className="eyebrow">FINAL</p>
+      <h1>FINAL｜真的把研究追回來</h1>
+      <div className="stage-lines"><div className="stage-line">10 分</div><div className="stage-line">不比速度</div></div>
+      <p className="stage-support">研究線索請看自己的螢幕。</p>
+      <p className="stage-support">任務：把「那篇原始研究」追回來，找到後填 FINAL Google 表單。</p>
+      <div className="screen-final-core-clues"><span>12～13 歲</span><span>UCSF</span><span>Sleep Health</span></div>
+    </div>;
+  }
   return <div className={`screen-stage surface screen-stage-${content.kind}`}>
     <p className="eyebrow">{content.eyebrow}</p>
     <h1>{content.title}</h1>
