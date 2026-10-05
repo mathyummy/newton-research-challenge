@@ -97,6 +97,7 @@ legend { display: none; }
 .answer-color-b { --answer-color: #1368ce; --answer-text: #fff; --answer-tint: rgba(19,104,206,.2); }
 .answer-color-c { --answer-color: #d89e00; --answer-text: #17130a; --answer-tint: rgba(216,158,0,.2); }
 .answer-color-d { --answer-color: #26890c; --answer-text: #fff; --answer-tint: rgba(38,137,12,.2); }
+.answer-color-e { --answer-color: #7b61ff; --answer-text: #fff; --answer-tint: rgba(123,97,255,.2); }
 .team-card { height: fit-content; background: transparent; }
 .team-card > p:not(.eyebrow) { color: var(--muted); line-height: 1.8; font-size: 13px; }
 .lock-note { margin-top: 34px; padding: 16px; border-left: 2px solid var(--amber); background: rgba(244,183,64,.07); }

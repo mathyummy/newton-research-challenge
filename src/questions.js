@@ -69,7 +69,7 @@ export const QUESTIONS = [
     level: "LEVEL 2｜檢查研究範圍",
     type: "multi",
     label: "多選題",
-    prompt: "閱讀研究資料時，哪些資訊值得一起記下來？（至少選 3 個；不要選 E）",
+    prompt: "閱讀研究資料時，哪些資訊值得一起記下來？（至少選 3 個）",
     options: [
       { key: "A", text: "研究對象" },
       { key: "B", text: "研究時間或年份" },
