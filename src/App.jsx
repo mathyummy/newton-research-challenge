@@ -205,9 +205,9 @@ function StudentQuestion({ session, team, setError }) {
       <div className="student-question-grid">
         <div className="surface question-card">
           <div className="question-meta"><span className="question-number">01</span><span className="status-badge status-amber">{ACTIVE_QUESTION.label}</span></div>
-          <p className="eyebrow">{ACTIVE_QUESTION.level}</p>
-          <h2>{ACTIVE_QUESTION.prompt}</h2>
-          <p className="question-helper">先和隊友討論，再由一台裝置提交一次。</p>
+          <p className="eyebrow">請看大屏作答</p>
+          <h2>請選擇答案</h2>
+          <p className="question-helper">和隊友討論後，選一個選項提交；完整題目只在大屏顯示。</p>
           {submitted ? (
             <div className="submitted-state"><span className="check-mark">✓</span><div><strong>已提交，答案已鎖定</strong><p>請看大屏，等待老師公布全班進度。</p></div></div>
           ) : (
