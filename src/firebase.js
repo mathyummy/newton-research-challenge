@@ -87,7 +87,8 @@ export async function claimTeacherSession(sessionId, user) {
   const sessionSnap = await getDoc(sessionRef);
   if (!sessionSnap.exists()) {
     await setDoc(sessionRef, {
-      status: "answering",
+      status: "waiting",
+      started: false,
       currentQuestion: 1,
       published: false,
       explanationVisible: false,
@@ -98,6 +99,9 @@ export async function claimTeacherSession(sessionId, user) {
       updatedAt: serverTimestamp(),
     });
     return;
+  }
+  if (sessionSnap.data().started === undefined && sessionSnap.data().status === "answering") {
+    await updateDoc(sessionRef, { status: "waiting", started: false, published: false, explanationVisible: false, updatedAt: serverTimestamp() });
   }
   if (!sessionSnap.data().teacherUid) {
     await updateDoc(sessionRef, { teacherUid: user.uid, updatedAt: serverTimestamp() });
@@ -160,7 +164,7 @@ export async function submitAnswer(sessionId, teamId, questionId, answer) {
 }
 
 export async function setSessionStatus(sessionId, status) {
-  await updateDoc(getSessionRef(sessionId), { status, updatedAt: serverTimestamp() });
+  await updateDoc(getSessionRef(sessionId), { status, ...(status === "answering" ? { started: true } : {}), updatedAt: serverTimestamp() });
 }
 
 export async function setSessionView(sessionId, changes) {
@@ -171,6 +175,7 @@ export async function advanceQuestion(sessionId, questionNumber) {
   await updateDoc(getSessionRef(sessionId), {
     currentQuestion: questionNumber,
     status: "answering",
+    started: true,
     published: false,
     explanationVisible: false,
     completedCount: 0,
@@ -190,7 +195,8 @@ export async function resetSession(sessionId) {
   teams.docs.forEach((team) => batch.delete(team.ref));
   publicAnswers.docs.forEach((answer) => batch.delete(answer.ref));
   batch.update(sessionRef, {
-    status: "answering",
+    status: "waiting",
+    started: false,
     currentQuestion: 1,
     published: false,
     explanationVisible: false,
