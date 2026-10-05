@@ -42,7 +42,8 @@ service cloud.firestore {
       match /publicAnswers/{answerId} {
         // The screen can read only the public projection: team name + answer.
         // Member names and seat numbers stay in the private teams collection.
-        allow read: if signedIn() && sessionDoc(sessionId).data.published == true;
+        allow read: if isTeacher(sessionId)
+          || (signedIn() && sessionDoc(sessionId).data.published == true);
         allow create: if signedIn()
           && request.resource.data.ownerUid == request.auth.uid
           && get(/databases/$(database)/documents/sessions/$(sessionId)/teams/$(request.resource.data.teamId)).data.ownerUid == request.auth.uid;
