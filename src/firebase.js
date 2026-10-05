@@ -47,6 +47,10 @@ export function getTeamRef(sessionId, teamId) {
   return doc(db, "sessions", sessionId, "teams", teamId);
 }
 
+export function getPublicAnswersCollection(sessionId) {
+  return collection(db, "sessions", sessionId, "publicAnswers");
+}
+
 export async function signInApp() {
   if (!auth) throw new Error("尚未設定 Firebase，請先完成 .env。");
   if (auth.currentUser) return auth.currentUser;
@@ -68,6 +72,12 @@ export function listenToTeam(sessionId, teamId, callback, onError) {
 
 export function listenToTeams(sessionId, callback, onError) {
   return onSnapshot(query(getTeamsCollection(sessionId), orderBy("createdAt", "asc")), (snapshot) => {
+    callback(snapshot.docs.map((item) => ({ id: item.id, ...item.data() })));
+  }, onError);
+}
+
+export function listenToPublicAnswers(sessionId, callback, onError) {
+  return onSnapshot(getPublicAnswersCollection(sessionId), (snapshot) => {
     callback(snapshot.docs.map((item) => ({ id: item.id, ...item.data() })));
   }, onError);
 }
@@ -118,6 +128,7 @@ export async function createTeam(sessionId, teamId, team) {
 export async function submitAnswer(sessionId, teamId, questionId, answer) {
   const sessionRef = getSessionRef(sessionId);
   const teamRef = getTeamRef(sessionId, teamId);
+  const publicAnswerRef = doc(getPublicAnswersCollection(sessionId), `${teamId}_${questionId}`);
   await runTransaction(db, async (transaction) => {
     const [sessionSnap, teamSnap] = await Promise.all([
       transaction.get(sessionRef),
@@ -133,6 +144,14 @@ export async function submitAnswer(sessionId, teamId, questionId, answer) {
       [`submitted.${questionId}`]: true,
       updatedAt: serverTimestamp(),
     });
+    transaction.set(publicAnswerRef, {
+      teamId,
+      teamName: team.teamName,
+      ownerUid: auth.currentUser.uid,
+      questionId,
+      value: answer,
+      submittedAt: serverTimestamp(),
+    });
     transaction.update(sessionRef, {
       completedCount: increment(1),
       updatedAt: serverTimestamp(),
@@ -144,14 +163,32 @@ export async function setSessionStatus(sessionId, status) {
   await updateDoc(getSessionRef(sessionId), { status, updatedAt: serverTimestamp() });
 }
 
+export async function setSessionView(sessionId, changes) {
+  await updateDoc(getSessionRef(sessionId), { ...changes, updatedAt: serverTimestamp() });
+}
+
+export async function advanceQuestion(sessionId, questionNumber) {
+  await updateDoc(getSessionRef(sessionId), {
+    currentQuestion: questionNumber,
+    status: "answering",
+    published: false,
+    explanationVisible: false,
+    completedCount: 0,
+    updatedAt: serverTimestamp(),
+  });
+}
+
 export async function resetSession(sessionId) {
   const sessionRef = getSessionRef(sessionId);
   const teamsSnap = await getDoc(sessionRef);
   if (!teamsSnap.exists()) return;
   const teamQuery = query(getTeamsCollection(sessionId));
   const teams = await getDocs(teamQuery);
+  const publicAnswerQuery = query(getPublicAnswersCollection(sessionId));
+  const publicAnswers = await getDocs(publicAnswerQuery);
   const batch = writeBatch(db);
   teams.docs.forEach((team) => batch.delete(team.ref));
+  publicAnswers.docs.forEach((answer) => batch.delete(answer.ref));
   batch.update(sessionRef, {
     status: "answering",
     currentQuestion: 1,
