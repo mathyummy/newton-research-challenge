@@ -33,9 +33,21 @@ service cloud.firestore {
           && (resource.data.ownerUid == request.auth.uid || isTeacher(sessionId));
         allow create: if signedIn() && request.resource.data.ownerUid == request.auth.uid;
         // MVP rule: owner can add a new answer, but cannot delete the team.
-        allow update: if signedIn()
-          && resource.data.ownerUid == request.auth.uid
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['answers', 'submitted', 'updatedAt']);
+        allow update: if (isTeacher(sessionId)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['score', 'scoring', 'updatedAt']))
+          || (signedIn()
+            && resource.data.ownerUid == request.auth.uid
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['answers', 'submitted', 'updatedAt']));
+        allow delete: if isTeacher(sessionId);
+      }
+
+      match /leaderboard/{teamId} {
+        allow read: if isTeacher(sessionId)
+          || (signedIn() && sessionDoc(sessionId).data.leaderboardVisible == true);
+        allow create: if isTeacher(sessionId)
+          && request.resource.data.keys().hasOnly(['teamName', 'score', 'updatedAt']);
+        allow update: if isTeacher(sessionId)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['teamName', 'score', 'updatedAt']);
         allow delete: if isTeacher(sessionId);
       }
 

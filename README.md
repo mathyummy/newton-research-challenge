@@ -8,7 +8,7 @@
 - `/screen`：大屏顯示目前題目、選項、Q幾/9、LEVEL、已完成 X/Y 組；教師公布後才顯示隊名與答案，顯示解析後才顯示正解。
 - `/teacher`：教師手機端看到目前題目、隊伍、成員、每組答案與完成／未完成狀態；可開始、停止、公布答案、顯示解析、切換下一題與重設本場。
 
-Q1–Q9 題目集中在 `src/questions.js`，目前已全部接到作答流程。計時器、計分、搶快題加分、排行榜與 FINAL 會在 Phase 3–4 接上。
+Q1–Q9 題目集中在 `src/questions.js`，目前已全部接到作答流程。Q1–Q9 的一次性計分、Q1/Q4 搶快 Bonus、累積分數與教師手動顯示排行榜已接上；FINAL 不計分、不進排行榜。
 
 ## 1. Firebase 建立步驟
 
@@ -59,6 +59,12 @@ npm run build
 npm run preview
 ```
 
+計分自動測試：
+
+```powershell
+npm run test:scoring
+```
+
 ## 4. 部署
 
 第一次部署：
@@ -91,6 +97,8 @@ firebase deploy --only hosting,firestore:rules
 - [ ] 教師按「顯示正解與解析」，大屏才顯示正解與解析。
 - [ ] 教師按「下一題」，大屏、學生端與教師端一起切換到 Q2，完成數回到 `0 / 目前組數`。
 - [ ] 測試 Q5 多選至少 3 個、Q6 開放文字、Q4 搶快題介面是否能提交。
+- [ ] 執行 `npm run test:scoring`，確認 Q1/Q4 前三組答對 Bonus、Q5 多選、重複計分與最高 10 分測試通過。
+- [ ] 教師停止 Q1 或 Q4 後，確認教師端看到基本分、Bonus、累積分數；按「顯示目前排行榜」後大屏才顯示排行榜。
 - [ ] 測試「重設本場」：二次確認後隊伍、答案與完成數清空並回到 Q1。
 - [ ] 若修改過 Rules，重新部署 `firestore.rules` 後再測一次公布答案。
 - [ ] 用教室實際 Wi-Fi、投影機與手機瀏覽器測一次，不只測開發電腦。
@@ -109,8 +117,10 @@ firebase deploy --only hosting,firestore:rules
 - 一個固定本場 `sessions/tomorrow-class`。
 - 隊伍在 `sessions/tomorrow-class/teams/{teamId}`。
 - 大屏公開投影資料在 `sessions/tomorrow-class/publicAnswers/{teamId_questionId}`，只存隊名與答案，不存成員姓名座號。
+- 排行榜資料在 `sessions/tomorrow-class/leaderboard/{teamId}`，只存隊名與 Q1–Q9 累積分數，不存成員姓名座號。
 - `teamCount` 與 `completedCount` 存在 session 文件，供大屏即時顯示 X/Y。
-- `currentQuestion`、`published`、`explanationVisible` 存在 session 文件，控制三端目前題目與公布狀態。
-- 本輪不做長期成績；「重設本場」會刪除本場所有隊伍、公開答案並將計數歸零。
+- `currentQuestion`、`published`、`explanationVisible`、`scoringFinalized`、`leaderboardVisible` 存在 session 文件，控制三端目前題目、公布、計分完成與排行榜顯示狀態。
+- 每組 team 文件有 `score` 與 `scoring.{questionId}`；教師停止作答時執行一次 `finalizeScoring()`，同題再次呼叫不會重複加分。
+- 「重設本場」會刪除本場所有隊伍、公開答案、排行榜並將分數、計數與計分完成狀態歸零。
 - 教師端第一次開啟會取得本場的匿名 teacher UID；請教師在學生加入前先開啟 `/teacher`。
 - 這是單班、單場 MVP。若同一 Firebase 專案同時開多個班，需在 Phase 4 再加入可切換 session code。

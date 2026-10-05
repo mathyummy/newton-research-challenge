@@ -16,6 +16,8 @@ import {
   updateDoc,
   writeBatch,
 } from "firebase/firestore";
+import { QUESTIONS } from "./questions.js";
+import { buildLeaderboard, finalizeScoreSnapshot } from "./scoring.js";
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -51,6 +53,10 @@ export function getPublicAnswersCollection(sessionId) {
   return collection(db, "sessions", sessionId, "publicAnswers");
 }
 
+export function getLeaderboardCollection(sessionId) {
+  return collection(db, "sessions", sessionId, "leaderboard");
+}
+
 export async function signInApp() {
   if (!auth) throw new Error("尚未設定 Firebase，請先完成 .env。");
   if (auth.currentUser) return auth.currentUser;
@@ -82,6 +88,12 @@ export function listenToPublicAnswers(sessionId, callback, onError) {
   }, onError);
 }
 
+export function listenToLeaderboard(sessionId, callback, onError) {
+  return onSnapshot(getLeaderboardCollection(sessionId), (snapshot) => {
+    callback(buildLeaderboard(snapshot.docs.map((item) => ({ teamId: item.id, ...item.data() }))));
+  }, onError);
+}
+
 export async function claimTeacherSession(sessionId, user) {
   const sessionRef = getSessionRef(sessionId);
   const sessionSnap = await getDoc(sessionRef);
@@ -95,6 +107,8 @@ export async function claimTeacherSession(sessionId, user) {
       explanationVisible: false,
       teamCount: 0,
       completedCount: 0,
+      scoringFinalized: {},
+      leaderboardVisible: false,
       teacherUid: user.uid,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
@@ -102,13 +116,17 @@ export async function claimTeacherSession(sessionId, user) {
     return;
   }
   const existingSession = sessionSnap.data();
+  const migration = {};
   if (existingSession.started === undefined && existingSession.status === "answering") {
-    await updateDoc(sessionRef, { status: "waiting", started: false, currentView: "waiting", published: false, explanationVisible: false, updatedAt: serverTimestamp() });
+    Object.assign(migration, { status: "waiting", started: false, currentView: "waiting", published: false, explanationVisible: false });
   } else if (existingSession.currentView === undefined) {
-    await updateDoc(sessionRef, { currentView: existingSession.started ? "question" : "waiting", updatedAt: serverTimestamp() });
+    migration.currentView = existingSession.started ? "question" : "waiting";
   }
-  if (!sessionSnap.data().teacherUid) {
-    await updateDoc(sessionRef, { teacherUid: user.uid, updatedAt: serverTimestamp() });
+  if (existingSession.scoringFinalized === undefined) migration.scoringFinalized = {};
+  if (existingSession.leaderboardVisible === undefined) migration.leaderboardVisible = false;
+  if (!existingSession.teacherUid) migration.teacherUid = user.uid;
+  if (Object.keys(migration).length > 0) {
+    await updateDoc(sessionRef, { ...migration, updatedAt: serverTimestamp() });
   }
 }
 
@@ -124,6 +142,8 @@ export async function createTeam(sessionId, teamId, team) {
       ownerUid: auth.currentUser.uid,
       answers: {},
       submitted: {},
+      score: 0,
+      scoring: {},
       createdAt: serverTimestamp(),
     });
     transaction.update(sessionRef, {
@@ -167,6 +187,43 @@ export async function submitAnswer(sessionId, teamId, questionId, answer) {
   });
 }
 
+export async function finalizeScoring(sessionId, questionId) {
+  const question = QUESTIONS.find((item) => item.id === questionId);
+  if (!question) throw new Error("找不到要計分的題目。");
+  const sessionRef = getSessionRef(sessionId);
+  const teamQuery = query(getTeamsCollection(sessionId));
+  let result = null;
+  await runTransaction(db, async (transaction) => {
+    const sessionSnap = await transaction.get(sessionRef);
+    const teamsSnap = await transaction.get(teamQuery);
+    if (!sessionSnap.exists()) throw new Error("找不到本場。");
+    const session = sessionSnap.data();
+    const teams = teamsSnap.docs.map((item) => ({ id: item.id, ...item.data() }));
+    result = finalizeScoreSnapshot({ session, teams, question });
+    if (result.alreadyFinalized) return;
+
+    result.teamUpdates.forEach((update) => {
+      transaction.update(getTeamRef(sessionId, update.teamId), {
+        score: update.score,
+        [`scoring.${questionId}`]: update.scoring,
+        updatedAt: serverTimestamp(),
+      });
+    });
+    result.leaderboard.forEach((row) => {
+      transaction.set(doc(getLeaderboardCollection(sessionId), row.teamId), {
+        teamName: row.teamName,
+        score: row.score,
+        updatedAt: serverTimestamp(),
+      });
+    });
+    transaction.update(sessionRef, {
+      [`scoringFinalized.${questionId}`]: true,
+      updatedAt: serverTimestamp(),
+    });
+  });
+  return result;
+}
+
 export async function setSessionStatus(sessionId, status) {
   await updateDoc(getSessionRef(sessionId), {
     status,
@@ -188,6 +245,7 @@ export async function advanceQuestion(sessionId, questionNumber) {
     currentView: "question",
     published: false,
     explanationVisible: false,
+    leaderboardVisible: false,
     completedCount: 0,
     updatedAt: serverTimestamp(),
   });
@@ -201,9 +259,12 @@ export async function resetSession(sessionId) {
   const teams = await getDocs(teamQuery);
   const publicAnswerQuery = query(getPublicAnswersCollection(sessionId));
   const publicAnswers = await getDocs(publicAnswerQuery);
+  const leaderboardQuery = query(getLeaderboardCollection(sessionId));
+  const leaderboard = await getDocs(leaderboardQuery);
   const batch = writeBatch(db);
   teams.docs.forEach((team) => batch.delete(team.ref));
   publicAnswers.docs.forEach((answer) => batch.delete(answer.ref));
+  leaderboard.docs.forEach((row) => batch.delete(row.ref));
   batch.update(sessionRef, {
     status: "waiting",
     started: false,
@@ -211,6 +272,8 @@ export async function resetSession(sessionId) {
     currentQuestion: 1,
     published: false,
     explanationVisible: false,
+    scoringFinalized: {},
+    leaderboardVisible: false,
     teamCount: 0,
     completedCount: 0,
     updatedAt: serverTimestamp(),
