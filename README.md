@@ -34,10 +34,10 @@ VITE_FIREBASE_PROJECT_ID=newton-research-2026
 VITE_FIREBASE_STORAGE_BUCKET=newton-research-2026.firebasestorage.app
 VITE_FIREBASE_MESSAGING_SENDER_ID=1234567890
 VITE_FIREBASE_APP_ID=1:1234567890:web:abc123
-VITE_GOOGLE_FORM_URL=https://forms.google.com/your-final-form
+VITE_GOOGLE_FORM_URL=https://forms.gle/FvtEhyyyXUQjhUND8
 ```
 
-`VITE_GOOGLE_FORM_URL` 已預留給 FINAL；Phase 4 會把它接到學生端與大屏按鈕。
+`VITE_GOOGLE_FORM_URL` 已設定為本次 FINAL Google Form；學生端會以新分頁開啟。
 
 ## 3. 本機啟動
 
