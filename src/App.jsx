@@ -205,14 +205,14 @@ function StudentQuestion({ session, team, setError }) {
       <div className="student-question-grid">
         <div className="surface question-card">
           <div className="question-meta"><span className="question-number">01</span><span className="status-badge status-amber">{ACTIVE_QUESTION.label}</span></div>
-          <p className="eyebrow">請看大屏作答</p>
-          <h2>請選擇答案</h2>
-          <p className="question-helper">和隊友討論後，選一個選項提交；完整題目只在大屏顯示。</p>
+          <p className="eyebrow">本頁同步顯示題目</p>
+          <h2 className="student-prompt">{ACTIVE_QUESTION.prompt}</h2>
+          <p className="question-helper">和隊友討論後，選一個選項提交；大屏會同步顯示相同內容。</p>
           {submitted ? (
             <div className="submitted-state"><span className="check-mark">✓</span><div><strong>已提交，答案已鎖定</strong><p>請看大屏，等待老師公布全班進度。</p></div></div>
           ) : (
             <form onSubmit={handleSubmit}>
-              <div className="option-list">{ACTIVE_QUESTION.options.map((option) => <label className={`option option-student ${selected === option.key ? "selected" : ""}`} key={option.key}><input type="radio" name="q1" value={option.key} aria-label={`選項 ${option.key}`} checked={selected === option.key} onChange={(event) => setSelected(event.target.value)} /><span className="option-key option-key-large">{option.key}</span></label>)}</div>
+              <div className="option-list option-list-student">{ACTIVE_QUESTION.options.map((option) => <label className={`option option-student answer-color-${option.key.toLowerCase()} ${selected === option.key ? "selected" : ""}`} key={option.key}><input type="radio" name="q1" value={option.key} aria-label={`選項 ${option.key}：${option.text}`} checked={selected === option.key} onChange={(event) => setSelected(event.target.value)} /><span className="option-key option-key-large">{option.key}</span><span className="option-text">{option.text}</span></label>)}</div>
               <button className="button button-primary button-wide" disabled={busy}>{busy ? "正在提交…" : "確認答案並提交"}</button>
             </form>
           )}
@@ -232,7 +232,7 @@ function StudentPage({ authUser, setError }) {
     return listenToTeam(SESSION_ID, teamId, setTeam, () => { localStorage.removeItem(TEAM_STORAGE_KEY); setTeamId(null); });
   }, [teamId]);
   const ready = Boolean(session);
-  return <PageFrame role="student" eyebrow="STUDENT MODE" title={team ? "Q1，先找到能相信的說法" : "先加入隊伍，再開始追查"} description={team ? "大屏會顯示完整題目；這個畫面只保留作答與提交。" : "一組兩人、一台裝置。今晚建立的最小版本，先讓明天的第一題順利跑起來。"}>
+  return <PageFrame role="student" eyebrow="STUDENT MODE" title={team ? "Q1，先找到能相信的說法" : "先加入隊伍，再開始追查"} description={team ? "大屏會顯示完整題目；這個畫面也同步保留題目與選項，方便作答。" : "一組兩人、一台裝置。今晚建立的最小版本，先讓明天的第一題順利跑起來。"}>
     {setError && <div className="connection-line"><span className={`live-dot ${ready ? "" : "offline"}`} />{ready ? `本場已連線 · ${session?.teamCount || 0} 組已加入` : "等待老師啟動本場…"}</div>}
     {team ? <StudentQuestion session={session} team={team} setError={setError} /> : <JoinTeam session={session} onJoined={setTeamId} setError={setError} />}
   </PageFrame>;
@@ -244,7 +244,7 @@ function ScreenPage({ authUser, setError }) {
   return <PageFrame role="screen" eyebrow="SCREEN MODE" title="全班追查進度" description="這個畫面只公布題目與全班完成進度；未公布前，不顯示任何隊伍答案。">
     <section className="screen-layout">
       <div className="screen-topline"><span className="live-label"><span className="live-dot" />LIVE SESSION</span><span>Q1 / 9</span><span className="screen-status">{session?.status === "stopped" ? "已停止作答" : "作答進行中"}</span></div>
-      <div className="screen-question surface"><div className="screen-question-header"><div><p className="eyebrow">{ACTIVE_QUESTION.level}</p><h2>{ACTIVE_QUESTION.label}</h2></div><div className="screen-progress"><strong>{progress}</strong><span>已完成組數</span></div></div><h1>{ACTIVE_QUESTION.prompt}</h1><div className="screen-options">{ACTIVE_QUESTION.options.map((option) => <div className="screen-option" key={option.key}><span>{option.key}</span><p>{option.text}</p></div>)}</div></div>
+      <div className="screen-question surface"><div className="screen-question-header"><div><p className="eyebrow">{ACTIVE_QUESTION.level}</p><h2>{ACTIVE_QUESTION.label}</h2></div><div className="screen-progress"><strong>{progress}</strong><span>已完成組數</span></div></div><h1>{ACTIVE_QUESTION.prompt}</h1><div className="screen-options">{ACTIVE_QUESTION.options.map((option) => <div className={`screen-option answer-color-${option.key.toLowerCase()}`} key={option.key}><span>{option.key}</span><p>{option.text}</p></div>)}</div></div>
       <div className="screen-bottomline"><span>請和隊友討論，完成後由一台裝置提交。</span><span className="privacy-note">答案尚未公布</span></div>
     </section>
   </PageFrame>;
