@@ -271,7 +271,10 @@ function ScreenPage({ authUser, setError }) {
   const session = useSession(authUser, setError);
   const question = getCurrentQuestion(session);
   const [publicAnswers, setPublicAnswers] = useState([]);
-  useEffect(() => listenToPublicAnswers(SESSION_ID, setPublicAnswers, (err) => setError(err.message || "讀取公布答案失敗。")), [setError]);
+  useEffect(() => {
+    if (!session?.published) { setPublicAnswers([]); return undefined; }
+    return listenToPublicAnswers(SESSION_ID, setPublicAnswers, (err) => setError(err.message || "讀取公布答案失敗。"));
+  }, [session?.published, setError]);
   const progress = session ? `${session.completedCount || 0} / ${session.teamCount || 0}` : "— / —";
   const visibleAnswers = publicAnswers.filter((answer) => answer.questionId === question.id);
   return <PageFrame role="screen" eyebrow="SCREEN MODE" title="全班追查進度" description="這個畫面只公布題目與全班完成進度；未公布前，不顯示任何隊伍答案。">
