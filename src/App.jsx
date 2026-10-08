@@ -565,7 +565,8 @@ function TeacherLogin({ onLogin, setError }) {
 }
 
 function TeacherPage({ setError }) {
-  const [teacherUser, setTeacherUser] = useState(() => teacherAuth?.currentUser || null);
+  // 每次重新進入教師端都先顯示密碼畫面；驗證成功後才接管本場。
+  const [teacherUser, setTeacherUser] = useState(null);
   const session = useSession(teacherUser, setError, teacherDb);
   const question = getCurrentQuestion(session);
   const view = getCurrentView(session);
