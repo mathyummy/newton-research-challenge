@@ -1,5 +1,5 @@
 import { getApps, initializeApp } from "firebase/app";
-import { getAuth, signInAnonymously } from "firebase/auth";
+import { getAuth, signInAnonymously, signInWithEmailAndPassword } from "firebase/auth";
 import {
   collection,
   doc,
@@ -37,24 +37,38 @@ const app = firebaseConfigured
 export const auth = app ? getAuth(app) : null;
 export const db = app ? getFirestore(app) : null;
 
-export function getSessionRef(sessionId) {
-  return doc(db, "sessions", sessionId);
+// 教師使用獨立的 Firebase App，避免教師登入切換同一瀏覽器中的學生匿名身分。
+const teacherApp = firebaseConfigured
+  ? getApps().find((candidate) => candidate.name === "teacher") || initializeApp(firebaseConfig, "teacher")
+  : null;
+export const teacherAuth = teacherApp ? getAuth(teacherApp) : null;
+export const teacherDb = teacherApp ? getFirestore(teacherApp) : null;
+const TEACHER_EMAIL = import.meta.env.VITE_TEACHER_EMAIL || "teacher@newton-research-challenge.web.app";
+const TEACHER_PASSWORD = import.meta.env.VITE_TEACHER_PASSWORD || "0519";
+const TEACHER_AUTH_PASSWORD = import.meta.env.VITE_TEACHER_AUTH_PASSWORD || "0519newton";
+
+export function getSessionRef(sessionId, database = db) {
+  return doc(database, "sessions", sessionId);
 }
 
-export function getTeamsCollection(sessionId) {
-  return collection(db, "sessions", sessionId, "teams");
+export function getTeamsCollection(sessionId, database = db) {
+  return collection(database, "sessions", sessionId, "teams");
 }
 
-export function getTeamRef(sessionId, teamId) {
-  return doc(db, "sessions", sessionId, "teams", teamId);
+export function getTeamRef(sessionId, teamId, database = db) {
+  return doc(database, "sessions", sessionId, "teams", teamId);
 }
 
-export function getPublicAnswersCollection(sessionId) {
-  return collection(db, "sessions", sessionId, "publicAnswers");
+export function getPublicAnswersCollection(sessionId, database = db) {
+  return collection(database, "sessions", sessionId, "publicAnswers");
 }
 
-export function getLeaderboardCollection(sessionId) {
-  return collection(db, "sessions", sessionId, "leaderboard");
+export function getLeaderboardCollection(sessionId, database = db) {
+  return collection(database, "sessions", sessionId, "leaderboard");
+}
+
+export function getLeaderboardRef(sessionId, teamId, database = db) {
+  return doc(database, "sessions", sessionId, "leaderboard", teamId);
 }
 
 export async function signInApp() {
@@ -64,8 +78,16 @@ export async function signInApp() {
   return credential.user;
 }
 
-export function listenToSession(sessionId, callback, onError) {
-  return onSnapshot(getSessionRef(sessionId), (snapshot) => {
+export async function signInTeacher(password) {
+  if (!teacherAuth) throw new Error("尚未設定 Firebase，請先完成 .env。");
+  if (password !== TEACHER_PASSWORD) throw new Error("教師密碼不正確。");
+  if (teacherAuth.currentUser) return teacherAuth.currentUser;
+  const credential = await signInWithEmailAndPassword(teacherAuth, TEACHER_EMAIL, TEACHER_AUTH_PASSWORD);
+  return credential.user;
+}
+
+export function listenToSession(sessionId, callback, onError, database = db) {
+  return onSnapshot(getSessionRef(sessionId, database), (snapshot) => {
     callback(snapshot.exists() ? { id: snapshot.id, ...snapshot.data() } : null);
   }, onError);
 }
@@ -76,8 +98,8 @@ export function listenToTeam(sessionId, teamId, callback, onError) {
   }, onError);
 }
 
-export function listenToTeams(sessionId, callback, onError) {
-  return onSnapshot(query(getTeamsCollection(sessionId), orderBy("createdAt", "asc")), (snapshot) => {
+export function listenToTeams(sessionId, callback, onError, database = db) {
+  return onSnapshot(query(getTeamsCollection(sessionId, database), orderBy("createdAt", "asc")), (snapshot) => {
     callback(snapshot.docs.map((item) => ({ id: item.id, ...item.data() })));
   }, onError);
 }
@@ -95,7 +117,7 @@ export function listenToLeaderboard(sessionId, callback, onError) {
 }
 
 export async function claimTeacherSession(sessionId, user) {
-  const sessionRef = getSessionRef(sessionId);
+  const sessionRef = getSessionRef(sessionId, teacherDb);
   const sessionSnap = await getDoc(sessionRef);
   if (!sessionSnap.exists()) {
     await setDoc(sessionRef, {
@@ -124,7 +146,7 @@ export async function claimTeacherSession(sessionId, user) {
   }
   if (existingSession.scoringFinalized === undefined) migration.scoringFinalized = {};
   if (existingSession.leaderboardVisible === undefined) migration.leaderboardVisible = false;
-  if (!existingSession.teacherUid) migration.teacherUid = user.uid;
+  if (existingSession.teacherUid !== user.uid) migration.teacherUid = user.uid;
   if (Object.keys(migration).length > 0) {
     await updateDoc(sessionRef, { ...migration, updatedAt: serverTimestamp() });
   }
@@ -187,45 +209,47 @@ export async function submitAnswer(sessionId, teamId, questionId, answer) {
   });
 }
 
-export async function finalizeScoring(sessionId, questionId) {
+export async function finalizeScoring(sessionId, questionId, database = db) {
   const question = QUESTIONS.find((item) => item.id === questionId);
   if (!question) throw new Error("找不到要計分的題目。");
-  const sessionRef = getSessionRef(sessionId);
-  const teamQuery = query(getTeamsCollection(sessionId));
-  let result = null;
-  await runTransaction(db, async (transaction) => {
-    const sessionSnap = await transaction.get(sessionRef);
-    const teamsSnap = await transaction.get(teamQuery);
-    if (!sessionSnap.exists()) throw new Error("找不到本場。");
-    const session = sessionSnap.data();
-    const teams = teamsSnap.docs.map((item) => ({ id: item.id, ...item.data() }));
-    result = finalizeScoreSnapshot({ session, teams, question });
-    if (result.alreadyFinalized) return;
+  const sessionRef = getSessionRef(sessionId, database);
+  const teamQuery = query(getTeamsCollection(sessionId, database));
+  const [sessionSnap, teamsSnap] = await Promise.all([getDoc(sessionRef), getDocs(teamQuery)]);
+  if (!sessionSnap.exists()) throw new Error("找不到本場。");
+  const session = sessionSnap.data();
+  const teams = teamsSnap.docs.map((item) => ({ ...item.data(), id: item.id }));
+  const result = finalizeScoreSnapshot({ session, teams, question });
+  if (result.alreadyFinalized) return result;
 
-    result.teamUpdates.forEach((update) => {
-      transaction.update(getTeamRef(sessionId, update.teamId), {
-        score: update.score,
-        [`scoring.${questionId}`]: update.scoring,
-        updatedAt: serverTimestamp(),
-      });
-    });
-    result.leaderboard.forEach((row) => {
-      transaction.set(doc(getLeaderboardCollection(sessionId), row.teamId), {
-        teamName: row.teamName,
-        score: row.score,
-        updatedAt: serverTimestamp(),
-      });
-    });
-    transaction.update(sessionRef, {
-      [`scoringFinalized.${questionId}`]: true,
+  const teamRefs = new Map(teamsSnap.docs.map((item) => [item.id, item.ref]));
+  const batch = writeBatch(database);
+  result.teamUpdates.forEach((update) => {
+    const teamRef = teamRefs.get(update.teamId);
+    if (!teamRef) throw new Error("有隊伍資料缺少有效的隊伍 ID，請重新整理教師端後再試。");
+    batch.update(teamRef, {
+      score: update.score,
+      [`scoring.${questionId}`]: update.scoring,
       updatedAt: serverTimestamp(),
     });
   });
+  result.leaderboard.forEach((row) => {
+    if (typeof row.teamId !== "string" || !row.teamId) throw new Error("有隊伍資料缺少有效的排行榜 ID，請重新整理教師端後再試。");
+    batch.set(getLeaderboardRef(sessionId, row.teamId, database), {
+      teamName: row.teamName,
+      score: row.score,
+      updatedAt: serverTimestamp(),
+    });
+  });
+  batch.update(sessionRef, {
+    [`scoringFinalized.${questionId}`]: true,
+    updatedAt: serverTimestamp(),
+  });
+  await batch.commit();
   return result;
 }
 
-export async function setSessionStatus(sessionId, status) {
-  await updateDoc(getSessionRef(sessionId), {
+export async function setSessionStatus(sessionId, status, database = db) {
+  await updateDoc(getSessionRef(sessionId, database), {
     status,
     ...(status === "answering" ? { started: true, currentView: "question" } : {}),
     ...(status === "waiting" ? { started: false, currentView: "waiting" } : {}),
@@ -233,12 +257,12 @@ export async function setSessionStatus(sessionId, status) {
   });
 }
 
-export async function setSessionView(sessionId, changes) {
-  await updateDoc(getSessionRef(sessionId), { ...changes, updatedAt: serverTimestamp() });
+export async function setSessionView(sessionId, changes, database = db) {
+  await updateDoc(getSessionRef(sessionId, database), { ...changes, updatedAt: serverTimestamp() });
 }
 
-export async function advanceQuestion(sessionId, questionNumber) {
-  await updateDoc(getSessionRef(sessionId), {
+export async function advanceQuestion(sessionId, questionNumber, database = db) {
+  await updateDoc(getSessionRef(sessionId, database), {
     currentQuestion: questionNumber,
     status: "answering",
     started: true,
@@ -251,17 +275,17 @@ export async function advanceQuestion(sessionId, questionNumber) {
   });
 }
 
-export async function resetSession(sessionId) {
-  const sessionRef = getSessionRef(sessionId);
+export async function resetSession(sessionId, database = db) {
+  const sessionRef = getSessionRef(sessionId, database);
   const teamsSnap = await getDoc(sessionRef);
   if (!teamsSnap.exists()) return;
-  const teamQuery = query(getTeamsCollection(sessionId));
+  const teamQuery = query(getTeamsCollection(sessionId, database));
   const teams = await getDocs(teamQuery);
-  const publicAnswerQuery = query(getPublicAnswersCollection(sessionId));
+  const publicAnswerQuery = query(getPublicAnswersCollection(sessionId, database));
   const publicAnswers = await getDocs(publicAnswerQuery);
-  const leaderboardQuery = query(getLeaderboardCollection(sessionId));
+  const leaderboardQuery = query(getLeaderboardCollection(sessionId, database));
   const leaderboard = await getDocs(leaderboardQuery);
-  const batch = writeBatch(db);
+  const batch = writeBatch(database);
   teams.docs.forEach((team) => batch.delete(team.ref));
   publicAnswers.docs.forEach((answer) => batch.delete(answer.ref));
   leaderboard.docs.forEach((row) => batch.delete(row.ref));

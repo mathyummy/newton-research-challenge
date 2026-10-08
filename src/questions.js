@@ -79,7 +79,7 @@ export const QUESTIONS = [
     number: 5,
     level: "LEVEL 2｜組合辨識線索",
     type: "multi",
-    label: "🎯準確題｜多選",
+    label: "☑ 複選題",
     prompt: `【教學模擬新聞】
 
 2025 年，某大學研究團隊調查青少年的螢幕使用與睡眠情形，研究結果刊登於《Sleep Health》。研究團隊表示，較長的螢幕使用時間與較差的睡眠狀況有關。

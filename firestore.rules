@@ -14,53 +14,61 @@ service cloud.firestore {
       return signedIn() && sessionDoc(sessionId).data.teacherUid == request.auth.uid;
     }
 
+    function isTeacherAccount() {
+      return signedIn() && request.auth.token.email == "teacher@newton-research-challenge.web.app";
+    }
+
+    function canManageSession(sessionId) {
+      return isTeacher(sessionId) || isTeacherAccount();
+    }
+
     match /sessions/{sessionId} {
       // All three screens need only the current session state.
       allow read: if signedIn();
-      allow create: if signedIn() && request.resource.data.teacherUid == request.auth.uid;
-      allow update: if isTeacher(sessionId)
+      allow create: if isTeacherAccount() && request.resource.data.teacherUid == request.auth.uid;
+      allow update: if canManageSession(sessionId)
         || (signedIn()
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['completedCount', 'updatedAt'])
           && request.resource.data.completedCount == resource.data.completedCount + 1)
         || (signedIn()
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['teamCount', 'updatedAt'])
           && request.resource.data.teamCount == resource.data.teamCount + 1);
-      allow delete: if isTeacher(sessionId);
+      allow delete: if canManageSession(sessionId);
 
       match /teams/{teamId} {
         // Students can only see their own team. Teacher device can see the roster.
         allow read: if signedIn()
-          && (resource.data.ownerUid == request.auth.uid || isTeacher(sessionId));
+          && (resource.data.ownerUid == request.auth.uid || canManageSession(sessionId));
         allow create: if signedIn() && request.resource.data.ownerUid == request.auth.uid;
         // MVP rule: owner can add a new answer, but cannot delete the team.
-        allow update: if (isTeacher(sessionId)
+        allow update: if (canManageSession(sessionId)
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['score', 'scoring', 'updatedAt']))
           || (signedIn()
             && resource.data.ownerUid == request.auth.uid
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['answers', 'submitted', 'updatedAt']));
-        allow delete: if isTeacher(sessionId);
+        allow delete: if canManageSession(sessionId);
       }
 
       match /leaderboard/{teamId} {
-        allow read: if isTeacher(sessionId)
+        allow read: if canManageSession(sessionId)
           || (signedIn() && sessionDoc(sessionId).data.leaderboardVisible == true);
-        allow create: if isTeacher(sessionId)
+        allow create: if canManageSession(sessionId)
           && request.resource.data.keys().hasOnly(['teamName', 'score', 'updatedAt']);
-        allow update: if isTeacher(sessionId)
+        allow update: if canManageSession(sessionId)
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['teamName', 'score', 'updatedAt']);
-        allow delete: if isTeacher(sessionId);
+        allow delete: if canManageSession(sessionId);
       }
 
       match /publicAnswers/{answerId} {
         // The screen can read only the public projection: team name + answer.
         // Member names and seat numbers stay in the private teams collection.
-        allow read: if isTeacher(sessionId)
+        allow read: if canManageSession(sessionId)
           || (signedIn() && sessionDoc(sessionId).data.published == true);
         allow create: if signedIn()
           && request.resource.data.ownerUid == request.auth.uid
           && get(/databases/$(database)/documents/sessions/$(sessionId)/teams/$(request.resource.data.teamId)).data.ownerUid == request.auth.uid;
         allow update: if false;
-        allow delete: if isTeacher(sessionId);
+        allow delete: if canManageSession(sessionId);
       }
     }
   }
