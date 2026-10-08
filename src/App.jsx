@@ -173,6 +173,7 @@ function PageFrame({ eyebrow, title, description, children, role }) {
         <nav className="role-nav" aria-label="切換畫面">
           {role !== "screen" ? <a className={role === "student" ? "active" : ""} href={ROUTES.student}>學生端</a> : null}
           <a className={role === "screen" ? "active" : ""} href={ROUTES.screen}>大屏</a>
+          {role === "screen" ? <a href={ROUTES.teacher}>教師端</a> : null}
           {role !== "student" && role !== "screen" ? <a className={role === "teacher" ? "active" : ""} href={ROUTES.teacher}>教師端</a> : null}
         </nav>
       </header>
