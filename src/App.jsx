@@ -166,14 +166,15 @@ function getQuestionTypeNotice(question) {
 
 function PageFrame({ eyebrow, title, description, children, role }) {
   const brandContent = <><span className="brand-mark">N</span><span><span className="brand-kicker">我是小牛頓</span><span className="brand-title">研究追查闖關</span></span></>;
+  const newTabProps = { target: "_blank", rel: "noreferrer" };
   return (
     <main className={`app-shell shell-${role}`}>
       <header className="topbar">
         {role === "screen" ? <div className="brand" aria-label="大屏畫面">{brandContent}</div> : <a className="brand" href={ROUTES.student} aria-label="回到學生端">{brandContent}</a>}
         <nav className="role-nav" aria-label="切換畫面">
-          {role !== "screen" ? <a className={role === "student" ? "active" : ""} href={ROUTES.student}>學生端</a> : null}
-          <a className={role === "screen" ? "active" : ""} href={ROUTES.screen}>大屏</a>
-          {role === "screen" ? <a href={ROUTES.teacher}>教師端</a> : null}
+          {role !== "screen" ? <a className={role === "student" ? "active" : ""} href={ROUTES.student} {...(role === "student" ? {} : newTabProps)}>學生端</a> : null}
+          <a className={role === "screen" ? "active" : ""} href={ROUTES.screen} {...(role === "screen" ? {} : newTabProps)}>大屏</a>
+          {role === "screen" ? <a href={ROUTES.teacher} {...newTabProps}>教師端</a> : null}
           {role !== "student" && role !== "screen" ? <a className={role === "teacher" ? "active" : ""} href={ROUTES.teacher}>教師端</a> : null}
         </nav>
       </header>
